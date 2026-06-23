@@ -130,6 +130,11 @@
       "id": 7,
       "subjectId": "FER202",
       "name": "Test"
+    },
+    {
+      "id": 8,
+      "subjectId": "LAB221",
+      "name": "OOP1"
     }
   ],
   "students_subjetcs": [
