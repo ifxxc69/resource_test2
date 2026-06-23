@@ -37,6 +37,8 @@ function StudentDetails() {
           className="form-control form-control-lg"
           placeholder="Enter student name to search ..."
         />
+
+        
       </div>
       <div className="mb-4 text-center">
         <button className="btn btn-success" onClick={() => navigate('/')}>Back to Home</button>
