@@ -1,23 +1,49 @@
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import database from '../data';
-
-const evaluationsByStudent = database.evaluations.reduce((map, record) => {
-  if (!map[record.studentId]) map[record.studentId] = [];
-  map[record.studentId].push(record);
-  return map;
-}, {});
-
-const studentDetailsByStudent = database.student_details.reduce((map, record) => {
-  map[record.studentId] = record;
-  return map;
-}, {});
+import axios from 'axios';
 
 function StudentDetails() {
   const { studentId } = useParams();
   const navigate = useNavigate();
-  const student = database.students.find((item) => item.studentId === studentId);
-  const detail = studentDetailsByStudent[studentId];
-  const evaluations = evaluationsByStudent[studentId] || [];
+
+  const [student, setStudent] = useState(null);
+  const [subjects, setSubjects] = useState([]);
+  const [evaluations, setEvaluations] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [resStudents, resSubjects, resEvaluations] = await Promise.all([
+          axios.get('http://localhost:9999/students'),
+          axios.get('http://localhost:9999/subjects'),
+          axios.get('http://localhost:9999/evaluations')
+        ]);
+
+        const foundStudent = resStudents.data.find((item) => item.studentId === studentId);
+        setStudent(foundStudent || null);
+        setSubjects(resSubjects.data);
+        
+        const filteredEvaluations = resEvaluations.data.filter((record) => record.studentId === studentId);
+        setEvaluations(filteredEvaluations);
+      } catch (error) {
+        console.error('Error fetching details:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [studentId]);
+
+  if (loading) {
+    return (
+      <div className="container py-5 text-center">
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
+      </div>
+    );
+  }
 
   if (!student) {
     return (
@@ -37,8 +63,6 @@ function StudentDetails() {
           className="form-control form-control-lg"
           placeholder="Enter student name to search ..."
         />
-
-        
       </div>
       <div className="mb-4 text-center">
         <button className="btn btn-success" onClick={() => navigate('/')}>Back to Home</button>
@@ -48,7 +72,7 @@ function StudentDetails() {
           <div className="p-4 border rounded" style={{ minHeight: '520px' }}>
             <h4 className="mb-4">Subjects</h4>
             <div className="mb-4">
-              {database.subjects.map((subject) => (
+              {subjects.map((subject) => (
                 <div key={subject.subjectId} className="mb-2">
                   <button
                     type="button"

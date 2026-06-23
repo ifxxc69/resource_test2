@@ -1,25 +1,13 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import database from '../data';
-
-const studentDetailsByStudent = database.student_details.reduce((map, record) => {
-  map[record.studentId] = record;
-  return map;
-}, {});
+import axios from 'axios';
 
 function StudentsManagement() {
   const [searchText, setSearchText] = useState('');
-  const [subjects, setSubjects] = useState(() => {
-    const storedSubjects = localStorage.getItem('subjects');
-    if (storedSubjects) {
-      try {
-        return JSON.parse(storedSubjects);
-      } catch {
-        return database.subjects;
-      }
-    }
-    return database.subjects;
-  });
+  const [students, setStudents] = useState([]);
+  const [subjects, setSubjects] = useState([]);
+  const [studentDetails, setStudentDetails] = useState([]);
+  const [studentsSubjects, setStudentsSubjects] = useState([]);
   const [newSubjectId, setNewSubjectId] = useState('');
   const [newSubjectName, setNewSubjectName] = useState('');
   const [subjectIdError, setSubjectIdError] = useState('');
@@ -27,14 +15,41 @@ function StudentsManagement() {
   const [searchParams] = useSearchParams();
   const selectedSubject = searchParams.get('subject') || '';
 
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [resStudents, resSubjects, resDetails, resStudentsSubjects] = await Promise.all([
+          axios.get('http://localhost:9999/students'),
+          axios.get('http://localhost:9999/subjects'),
+          axios.get('http://localhost:9999/student_details'),
+          axios.get('http://localhost:9999/students_subjetcs')
+        ]);
+        setStudents(resStudents.data);
+        setSubjects(resSubjects.data);
+        setStudentDetails(resDetails.data);
+        setStudentsSubjects(resStudentsSubjects.data);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const studentDetailsByStudent = useMemo(() => {
+    return studentDetails.reduce((map, record) => {
+      map[record.studentId] = record;
+      return map;
+    }, {});
+  }, [studentDetails]);
+
   const filteredStudents = useMemo(() => {
     const query = searchText.trim().toLowerCase();
-    return database.students
+    return students
       .filter((student) => {
         const matchesSearch = !query || student.name.toLowerCase().startsWith(query);
         const matchesSubject = !selectedSubject
           ? true
-          : database.students_subjetcs.some(
+          : studentsSubjects.some(
               (entry) => entry.studentId === student.studentId && entry.subjectId === selectedSubject
             );
         return matchesSearch && matchesSubject;
@@ -43,9 +58,9 @@ function StudentsManagement() {
         ...student,
         detail: studentDetailsByStudent[student.studentId] || { address: { street: '', city: '' } }
       }));
-  }, [searchText, selectedSubject]);
+  }, [searchText, selectedSubject, students, studentsSubjects, studentDetailsByStudent]);
 
-  const handleAddSubject = (event) => {
+  const handleAddSubject = async (event) => {
     event.preventDefault();
     const subjectIdValue = newSubjectId.trim();
     const subjectNameValue = newSubjectName.trim();
@@ -55,7 +70,15 @@ function StudentsManagement() {
       setSubjectIdError('SubjectId not empty');
       hasError = true;
     } else {
-      setSubjectIdError('');
+      const isDuplicate = subjects.some(
+        (sub) => sub.subjectId.toLowerCase() === subjectIdValue.toLowerCase()
+      );
+      if (isDuplicate) {
+        setSubjectIdError('SubjectId already exists');
+        hasError = true;
+      } else {
+        setSubjectIdError('');
+      }
     }
 
     if (!subjectNameValue) {
@@ -69,17 +92,19 @@ function StudentsManagement() {
       return;
     }
 
-    const nextId = subjects.length > 0 ? Math.max(...subjects.map((item) => item.id)) + 1 : 1;
-    const nextSubjects = [
-      ...subjects,
-      { id: nextId, subjectId: subjectIdValue, name: subjectNameValue }
-    ];
-    setSubjects(nextSubjects);
-    localStorage.setItem('subjects', JSON.stringify(nextSubjects));
-    setNewSubjectId('');
-    setNewSubjectName('');
-    alert('Add new subject success');
-    window.location.reload();
+    try {
+      const nextId = subjects.length > 0 ? Math.max(...subjects.map((item) => Number(item.id) || 0)) + 1 : 1;
+      const newSubject = { id: nextId, subjectId: subjectIdValue, name: subjectNameValue };
+      const response = await axios.post('http://localhost:9999/subjects', newSubject);
+      setSubjects([...subjects, response.data]);
+      setNewSubjectId('');
+      setNewSubjectName('');
+      alert('Add new subject success');
+      window.location.reload();
+    } catch (error) {
+      console.error('Error adding subject:', error);
+      alert('Failed to add subject');
+    }
   };
 
   return (
@@ -179,7 +204,7 @@ function StudentsManagement() {
           </div>
         </div>
       </div>
-      <footer className="text-center mt-4 pt-3 border-top">Copyright by: HExxxxxx</footer>
+      <footer className="text-center mt-4 pt-3 border-top">Copyright by: HE190267</footer>
     </div>
   );
 }

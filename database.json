@@ -120,6 +120,16 @@
       "id": 5,
       "subjectId": "PRJ301",
       "name": "Programming Java Web"
+    },
+    {
+      "id": 6,
+      "subjectId": "LAB211",
+      "name": "OOP"
+    },
+    {
+      "id": 7,
+      "subjectId": "FER202",
+      "name": "Test"
     }
   ],
   "students_subjetcs": [
